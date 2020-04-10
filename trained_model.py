@@ -32,10 +32,13 @@ class TrainedModel(object):
 	Args:
 		config: The Config to build the model graph with.
 		batch_size: The batch size to build the model graph with.
-		checkpoint_dir_or_path: The directory containing checkpoints for the model,
+		vae_checkpoint_dir_or_path: The directory containing VAE checkpoints for the model,
 			the most recent of which will be loaded, or a direct path to a specific
 			checkpoint.
-		var_name_substitutions: Optional list of string pairs containing regex
+		lc_vae_checkpoint_dir_or_path: The directory containing LC VAE checkpoints for the model,
+			the most recent of which will be loaded, or a direct path to a specific
+			checkpoint.
+		lc_vae_var_pattern: List of string containing varible name pattern for LC VAE part
 			patterns and substitution values for renaming model variables to match
 			those in the checkpoint. Useful for backwards compatibility.
 		session_target: Optional execution engine to connect to. Defaults to
@@ -45,12 +48,17 @@ class TrainedModel(object):
 	"""
 	
 	def __init__(
-			self, config, batch_size, checkpoint_dir_or_path=None,
-			var_name_substitutions=None, session_target='', **sample_kwargs):
-		if tf.gfile.IsDirectory(checkpoint_dir_or_path):
-			checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir_or_path)
+			self, config, batch_size, vae_checkpoint_dir_or_path=None, lc_vae_checkpoint_dir_or_path=None,
+			lc_vae_var_pattern=None, session_target='', **sample_kwargs):
+		if tf.gfile.IsDirectory(vae_checkpoint_dir_or_path):
+			vae_checkpoint_path = tf.train.latest_checkpoint(vae_checkpoint_dir_or_path)
 		else:
-			checkpoint_path = checkpoint_dir_or_path
+			vae_checkpoint_path = vae_checkpoint_dir_or_path
+			
+		if tf.gfile.IsDirectory(lc_vae_checkpoint_dir_or_path):
+			lc_vae_checkpoint_path = tf.train.latest_checkpoint(lc_vae_checkpoint_dir_or_path)
+		else:
+			lc_vae_checkpoint_path = lc_vae_checkpoint_dir_or_path
 		self._config = copy.deepcopy(config)
 		self._config.data_converter.set_mode('infer')
 		self._config.hparams.batch_size = batch_size
@@ -90,47 +98,64 @@ class TrainedModel(object):
 				tf.int32,
 				shape=[batch_size] + list(self._config.data_converter.length_shape))
 			self._max_length = tf.placeholder(tf.int32, shape=())
-			self._outputs = tf.placeholder(
-						tf.float32,
-						shape=[batch_size, None, self._config.data_converter.output_depth]
-					)
+
+			# Outputs
+			self._outputs, self._decoder_results = model.sample(
+				batch_size,
+				max_length=self._max_length,
+				z=self._z_input,
+				c_input=self._c_input,
+				temperature=self._temperature,
+				**sample_kwargs)
+			if self._config.hparams.z_size:
+				q_z = model.encode(self._inputs, self._inputs_length, self._controls)
+				self._mu = q_z.loc
+				self._sigma = q_z.scale.diag
+				self._z = q_z.sample()
 			
-			_ = model.train(
-						self._inputs, self._outputs, self._inputs_length, self._controls
-					)
-			var_map = None
+			if lc_vae_var_pattern is None or len(lc_vae_var_pattern) == 0:
+				raise ValueError("LC VAE variable pattern must be a non-empty list")
 			
-			if var_name_substitutions is not None:
-				var_map = {}
-				for v in tf.global_variables():
-					var_name = v.name[:-2]  # Strip ':0' suffix.
-					for pattern, substitution in var_name_substitutions:
-						var_name = re.sub(pattern, substitution, var_name)
-					if var_name != v.name[:-2]:
-						tf.logging.info('Renaming `%s` to `%s`.', v.name[:-2], var_name)
-					var_map[var_name] = v
+			vae_var_list = []
+			lc_vae_var_list = []
+			for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+				flag = False
+				for pattern in lc_vae_var_pattern:
+					if re.search(pattern, v.name):
+						flag = True
+						lc_vae_var_list.append(v)
+				if not flag:
+					vae_var_list.append(v)
 			
-			# Restore graph
+			# Restore vae graph part
 			self._sess = tf.Session(target=session_target)
-			saver = tf.train.Saver(var_map)
-			if os.path.exists(checkpoint_path) and tarfile.is_tarfile(checkpoint_path):
-				tf.logging.info('Unbundling checkpoint.')
+			vae_saver = tf.train.Saver(vae_var_list)
+			if os.path.exists(vae_checkpoint_path) and tarfile.is_tarfile(vae_checkpoint_path):
+				tf.logging.info('Unbundling vae checkpoint.')
 				with tempfile.TemporaryDirectory() as temp_dir:
-					tar = tarfile.open(checkpoint_path)
+					tar = tarfile.open(vae_checkpoint_path)
 					tar.extractall(temp_dir)
 					# Assume only a single checkpoint is in the directory.
 					for name in tar.getnames():
 						if name.endswith('.index'):
-							checkpoint_path = os.path.join(temp_dir, name[0:-6])
+							vae_checkpoint_path = os.path.join(temp_dir, name[0:-6])
 							break
-					saver.restore(self._sess, checkpoint_path)
+					vae_saver.restore(self._sess, vae_checkpoint_path)
 			else:
-				saver.restore(self._sess, checkpoint_path)
-	
-	@property
-	def graph(self):
-		return self._graph
-	
-	@property
-	def sess(self):
-		return self._sess
+				vae_saver.restore(self._sess, vae_checkpoint_path)
+				
+			# Restore lc vae graph part
+			lc_vae_saver = tf.train.Saver(lc_vae_var_list)
+			if os.path.exists(vae_checkpoint_path) and tarfile.is_tarfile(lc_vae_checkpoint_path):
+				tf.logging.info('Unbundling lc vae checkpoint.')
+				with tempfile.TemporaryDirectory() as temp_dir:
+					tar = tarfile.open(vae_checkpoint_path)
+					tar.extractall(temp_dir)
+					# Assume only a single checkpoint is in the directory.
+					for name in tar.getnames():
+						if name.endswith('.index'):
+							lc_vae_checkpoint_path = os.path.join(temp_dir, name[0:-6])
+							break
+					lc_vae_saver.restore(self._sess, lc_vae_checkpoint_path)
+			else:
+				lc_vae_saver.restore(self._sess, lc_vae_checkpoint_path)
