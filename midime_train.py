@@ -22,9 +22,7 @@ import os
 import re
 
 from magenta.models.music_vae import data
-from magenta.models.music_vae import configs as vae_configs
 import configs
-from vae_model import VAEModel
 import tensorflow as tf
 
 VAR_TRAIN_PATTERN = ['latent_encoder', 'decoder']
@@ -74,10 +72,6 @@ flags.DEFINE_string(
 flags.DEFINE_string(
 	'config', '',
 	'The name of the config to use.'
-)
-flags.DEFINE_string(
-	'pretrained_config', '',
-	'The name of the pretrained config we want to load weight from.'
 )
 flags.DEFINE_string(
 	'pretrained_path', '',
@@ -173,7 +167,9 @@ def _get_input_tensors(dataset, config):
 	}
 
 
+# Should be called before _set_trainable_vars
 def _get_restore_vars():
+	"""Get list of variables we want to restored"""
 	restored_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 		flag = False
@@ -188,6 +184,7 @@ def _get_restore_vars():
 
 
 def _set_trainable_vars():
+	"""Set list of variables we want to train"""
 	train_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 		for pattern in VAR_TRAIN_PATTERN:
@@ -220,6 +217,9 @@ def train(
 		)
 		
 	with tf.Graph().as_default():
+		with tf.device(tf.train.replica_device_setter(
+			num_ps_tasks, merge_devices=True
+		)):
 			model = config.model
 			model.build(
 				config.hparams,
@@ -230,9 +230,15 @@ def train(
 			optimizer = model.train(**_get_input_tensors(dataset_fn(), config))
 			restored_vars = _get_restore_vars()
 			_set_trainable_vars()
-			hooks = []
 			
-			# TODO: Add distributed function
+			hooks = []
+			if num_sync_workers:
+				optimizer = tf.train.SyncReplicasOptimizer(
+					optimizer,
+					num_sync_workers
+				)
+				hooks.append(optimizer.make_session_run_hook(is_chief))
+			
 			grads, var_list = zip(*optimizer.compute_gradients(model.loss))
 			global_norm = tf.global_norm(grads)
 			tf.summary.scalar('global_norm', global_norm)
@@ -290,6 +296,46 @@ def train(
 				is_chief=is_chief
 			)
 
+
+def evaluate(
+		train_dir,
+		eval_dir,
+		config,
+		dataset_fn,
+		num_batches,
+		master=''
+):
+	"""Evaluate the model repeatedly."""
+	tf.gfile.MakeDirs(eval_dir)
+	
+	_trial_summary(
+		config.hparams, config.eval_examples_path or config.tfds_name, eval_dir
+	)
+	with tf.Graph().as_default():
+		model = config.model
+		model.build(
+			config.hparams,
+			config.data_converter.output_depth,
+			encoder_train=False,
+			decoder_train=False
+		)
+		
+		eval_op = model.eval(
+			**_get_input_tensors(dataset_fn().take(num_batches), config)
+		)
+		
+		hooks = [
+			tf.contrib.training.StopAfterNEvalsHook(num_batches),
+			tf.contrib.training.SummaryAtEndHook(eval_dir)
+		]
+		tf.contrib.training.evaluate_repeatedly(
+			train_dir,
+			eval_ops=eval_op,
+			hooks=hooks,
+			eval_interval_secs=60,
+			master=master
+		)
+		
 
 def run(
 		config_map,
@@ -367,8 +413,24 @@ def run(
 			num_ps_tasks=FLAGS.num_ps_tasks,
 			task=FLAGS.task
 		)
+	else:
+		num_batches = FLAGS.eval_num_batches or data.count_examples(
+			config.eval_examples_path,
+			config.tfds_name,
+			config.data_converter,
+			file_reader
+		) // config.hparams.batch_size
+		eval_dir = os.path.join(run_dir, 'eval' + FLAGS.eval_dir_suffix)
+		evaluate(
+			train_dir,
+			eval_dir,
+			config=config,
+			dataset_fn=dataset_fn,
+			num_batches=num_batches,
+			master=FLAGS.master
+		)
 
-	
+
 def main(unsused_argv):
 	tf.logging.set_verbosity(FLAGS.log)
 	run(configs.CONFIG_MAP)

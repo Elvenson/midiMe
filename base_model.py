@@ -388,29 +388,29 @@ class LCMusicVAE(object):
 			
 		return optimizer
 	
-	def eval(self, input_sequence, output_sequence, sequence_length, control_length=None):
+	def eval(self, input_sequence, output_sequence, sequence_length, control_sequence=None):
 		"""
 		Evaluate on the given sequences, returning metric update ops.
 		:param input_sequence: The sequence to be fed to the encoder.
 		:param output_sequence: The sequence expected from the decoder.
 		:param sequence_length: The length of the given sequences (which must be
 			identical).
-		:param control_length: (Optional) sequence on which to condition the decoder.
+		:param control_sequence: (Optional) sequence on which to condition the decoder.
 		:return:
 			metric_update_ops: tf.metrics update ops.
 		"""
 		metric_map, scalars_to_summarize = self._compute_model_loss(
-			input_sequence, output_sequence, sequence_length, control_length
+			input_sequence, output_sequence, sequence_length, control_sequence
 		)
 		
-		for n, t in scalars_to_summarize.iteritems():
+		for n, t in scalars_to_summarize.items():
 			metric_map[n] = tf.metrics.mean(t)
 		
 		metrics_to_values, metrics_to_update = (
 			tf.contrib.metrics.aggregate_metric_map(metric_map)
 		)
 		
-		for metric_name, metric_value in metrics_to_values.iteritems():
+		for metric_name, metric_value in metrics_to_values.items():
 			tf.summary.scalar(metric_name, metric_value)
 			
 		return metrics_to_update.values()
