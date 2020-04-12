@@ -137,7 +137,6 @@ class LCMusicVAE(object):
 		self._hparams = hparams
 		self._encoder.build(hparams, encoder_train)
 		self._decoder.build(hparams, output_depth, decoder_train)
-		
 
 	@property
 	def encoder(self):
