@@ -22,15 +22,17 @@ import collections
 
 from magenta.common import merge_hparams
 from magenta.models.music_vae import data
-import lstm_models
+from magenta.models.music_vae import lstm_models
 from base_model import LCMusicVAE
 from tensorflow.contrib.training import HParams
 
 
 class Config(collections.namedtuple(
 		'Config',
-		['model', 'hparams', 'note_sequence_augmenter', 'data_converter',
-		 'train_examples_path', 'eval_examples_path', 'tfds_name', 'pretrained_path'])):
+		[
+			'model', 'hparams', 'note_sequence_augmenter', 'data_converter',
+			'train_examples_path', 'eval_examples_path', 'tfds_name', 'pretrained_path'
+		])):
 
 	def values(self):
 		return self._asdict()
