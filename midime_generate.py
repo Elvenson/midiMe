@@ -26,6 +26,7 @@ import sys
 import time
 
 from magenta import music as mm
+from magenta.models.music_vae import configs as vae_configs
 import configs
 from trained_model import TrainedModel
 import numpy as np
@@ -44,12 +45,20 @@ flags.DEFINE_string(
 	'Path to the checkpoint file. run_dir will take priority over this flag.'
 )
 flags.DEFINE_string(
+	'vae_checkpoint_file', None,
+	'Path to the MusicVAE checkpoint file.'
+)
+flags.DEFINE_string(
 	'output_dir', 'tmp/midiMe/generated',
 	'The directory where MIDI files will be saved to.'
 )
 flags.DEFINE_string(
 	'config', None,
 	'The name of the config to use.'
+)
+flags.DEFINE_string(
+	'vae_config', None,
+	'The name of pretrained MusicVAE model'
 )
 flags.DEFINE_string(
 	'mode', 'sample',
@@ -91,10 +100,11 @@ def _slerp(p0, p1, t):
 	return np.sin((1.0-t)*omega) / so * p0 + np.sin(t*omega)/so * p1
 
 
-def run(config_map):
+def run(config_map, vae_config_map):
 	"""
 	Load model params, save config file and start trainer.
-	:param config_map: Dictionary mapping configuration name to Config object.
+	:param config_map: MidiMe dictionary mapping configuration name to Config object.
+	:param vae_config_map: MusicVAE dictionary mapping configuration name to Config object.
 	:raises:
 		ValueError: if required flags are missing or invalid.
 	"""
@@ -104,6 +114,10 @@ def run(config_map):
 		raise ValueError(
 			'Exactly one of `--run_dir` or `--checkpoint_file` must be specified.'
 		)
+	if FLAGS.vae_checkpoint_file is None:
+		raise ValueError(
+			'`--vae_checkpoint_file` is required.'
+		)
 	if FLAGS.output_dir is None:
 		raise ValueError('`--output_dir` is required.')
 	tf.gfile.MakeDirs(FLAGS.output_dir)
@@ -111,8 +125,11 @@ def run(config_map):
 		raise ValueError('Invalid value for `--mode`: %s' % FLAGS.mode)
 	
 	if FLAGS.config not in config_map:
-		raise ValueError('Invalid config name: %s' % FLAGS.config)
+		raise ValueError('Invalid MidiMe config name: %s' % FLAGS.config)
 	config = config_map[FLAGS.config]
+	if FLAGS.vae_config not in vae_config_map:
+		raise ValueError('Invalid MusicVAE config name: %s' % FLAGS.vae_config)
+	vae_config = vae_config_map[FLAGS.vae_config]
 	config.data_converter.max_tensors_per_item = None
 	
 	if FLAGS.mode == 'interpolate':
@@ -163,9 +180,11 @@ def run(config_map):
 			os.path.join(FLAGS.run_dir, 'train'))
 	else:
 		checkpoint_dir_or_path = os.path.expanduser(FLAGS.checkpoint_file)
+	vae_checkpoint_dir_or_path = os.path.expanduser(FLAGS.vae_checkpoint_file)
 	model = TrainedModel(
-		config, batch_size=min(FLAGS.max_batch_size, FLAGS.num_outputs),
-		checkpoint_dir_or_path=checkpoint_dir_or_path)
+		vae_config=vae_config, lc_vae_config=config, batch_size=min(FLAGS.max_batch_size, FLAGS.num_outputs),
+		vae_checkpoint_dir_or_path=vae_checkpoint_dir_or_path, lc_vae_checkpoint_dir_or_path=checkpoint_dir_or_path,
+		lc_vae_var_pattern=['latent'], session_target='')
 	
 	if FLAGS.mode == 'interpolate':
 		logging.info('Interpolating...')
@@ -196,7 +215,7 @@ def run(config_map):
 
 def main(unused_argv):
 	logging.set_verbosity(FLAGS.log)
-	run(configs.CONFIG_MAP)
+	run(configs.CONFIG_MAP, vae_configs.CONFIG_MAP)
 
 
 def console_entry_point():
