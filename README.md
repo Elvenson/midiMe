@@ -59,8 +59,9 @@ python midime_generate.py \
 #### Training your own LCMusicVAE
 
 Just like MusicVAE training pipeline, we also need to convert a collection of MIDI files into NoteSequences by following the instructions
-in [Building your Dataset](https://github.com/tensorflow/magenta/blob/master/magenta/scripts/README.md). Assuming your generated 
-examples are `data/notesequences.tfrecord`, training `lc-cat-mel_2bar_big` will be something like this:
+in [Building your Dataset](https://github.com/tensorflow/magenta/blob/master/magenta/scripts/README.md). Addtionally, we
+also need to load encoder part and latent space from MusicVAE pre-trained model for training smaller latent space. 
+Assuming your generated examples are `data/notesequences.tfrecord`, training `lc-cat-mel_2bar_big` will be something like this:
 
 ```sh
 python2 midime_train.py \
