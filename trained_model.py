@@ -187,6 +187,14 @@ class TrainedModel(object):
 			else:
 				lc_vae_saver.restore(self._sess, lc_vae_checkpoint_path)
 	
+	@property
+	def graph(self):
+		return self._graph
+	
+	@property
+	def sess(self):
+		return self._sess
+	
 	def sample(self, n=None, length=None, temperature=1.0, same_z=False, c_input=None):
 		"""
 		Generates random samples from the model.
