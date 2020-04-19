@@ -30,7 +30,7 @@ from magenta.models.music_vae import configs as vae_configs
 import configs
 from trained_model import TrainedModel
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 flags = tf.app.flags
 logging = tf.logging

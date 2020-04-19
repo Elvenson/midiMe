@@ -26,7 +26,7 @@ import tarfile
 import numpy as np
 
 from backports import tempfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from magenta.common import merge_hparams
 from configs import Config
 

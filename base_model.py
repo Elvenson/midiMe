@@ -23,13 +23,16 @@ from __future__ import print_function
 
 import abc
 
-import tensorflow as tf
+import six
+import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
+from tensorflow.contrib import metrics as contrib_metrics
+from tensorflow.contrib import training as contrib_training
 
 ds = tfp.distributions
 
 
-class BaseEncoder(object):
+class BaseEncoder(six.with_metaclass(abc.ABCMeta, object)):
 	"""
 	Abstract encoder class.
 	Implementations must define the following abstract methods:
@@ -64,7 +67,7 @@ class BaseEncoder(object):
 		pass
 
 
-class BaseDecoder(object):
+class BaseDecoder(six.with_metaclass(abc.ABCMeta, object)):
 	"""
 	Abstract decoder class.
 	Implementations must define the following abstract methods:
@@ -423,13 +426,13 @@ class LCMusicVAE(object):
 			metric_map[n] = tf.metrics.mean(t)
 		
 		metrics_to_values, metrics_to_update = (
-			tf.contrib.metrics.aggregate_metric_map(metric_map)
+			contrib_metrics.aggregate_metric_map(metric_map)
 		)
 		
 		for metric_name, metric_value in metrics_to_values.items():
 			tf.summary.scalar(metric_name, metric_value)
 			
-		return metrics_to_update.values()
+		return list(metrics_to_update.values())
 	
 	def sample(self, n, max_length=None, z=None, c_input=None, **kwargs):
 		"""Sample with on optional conditional embedding `z`."""
@@ -455,7 +458,7 @@ class LCMusicVAE(object):
 	
 
 def get_default_hparams():
-	return tf.contrib.training.HParams(
+	return contrib_training.HParams(
 		max_seq_len=32,  # Maximum sequence length. Others will be truncated.
 		z_size=32,  # Size of latent vector z.
 		encoded_z_size=16,   # Size of encoded latent vector z.
