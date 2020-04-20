@@ -7,17 +7,13 @@ a look at this [paper](https://research.google/pubs/pub48628/).
 
 ## Installation:
 
-Currently I do not support python3. Preferably using Anaconda to create new environment by:
+Just like official [Magenta](https://github.com/tensorflow/magenta) repo, you can pip install magenta package (support only Python >= 3.5) 
+or if you want to install with anaconda, just simply type:
 
+```bash
+curl https://raw.githubusercontent.com/tensorflow/magenta/master/magenta/tools/magenta-install.sh > /tmp/magenta-install.sh
+bash /tmp/magenta-install.sh
 ```
-conda create -n magenta python=2.7
-```
-
-And pip install the following dependency:
-* tensorflow==1.14.0
-* tensorflow_datasets==1.3.2
-* tensorflow_probability==0.7.0
-* magenta==1.1.8
 
 ### How To Use
 
