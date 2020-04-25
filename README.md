@@ -47,8 +47,8 @@ python midime_generate.py \
 --vae_checkpoint_file=/path/to/music_vae/checkpoints/cat-mel_2bar.ckpt \
 --mode=interpolate \
 --num_outputs=5 \
---input_midi_1=/path/to/input/1.mid
---input_midi_2=/path/to/input/2.mid
+--input_midi_1=/path/to/input/1.mid \
+--input_midi_2=/path/to/input/2.mid \
 --output_dir=/tmp/music_vae/generated
 ```
 
