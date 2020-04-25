@@ -89,9 +89,7 @@ class TrainedModel(object):
 		self._config = _update_config(lc_vae_config, vae_config)
 		self._config.data_converter.set_mode('infer')
 		self._config.hparams.batch_size = batch_size
-		graph = tf.Graph()
-		self._graph = graph
-		with graph.as_default():
+		with tf.Graph().as_default():
 			model = self._config.model
 			model.build(
 				self._config.hparams,
@@ -233,11 +231,11 @@ class TrainedModel(object):
 			outputs.append(self._sess.run(self._outputs, feed_dict))
 		samples = np.vstack(outputs)[:n]
 		if self._c_input is not None:
-			return self._config.data_converter.to_items(
+			return self._config.data_converter.from_tensors(
 				samples, np.tile(np.expand_dims(c_input, 0), [batch_size, 1, 1])
 			)
 		else:
-			self._config.data_converter.to_items(samples)
+			return self._config.data_converter.from_tensors(samples)
 		
 	def encode(self, note_sequences, assert_same_length=False):
 		"""
@@ -265,7 +263,7 @@ class TrainedModel(object):
 				raise NoExtractedExamplesError(
 					'No examples extracted from NoteSequence: %s' % note_sequence
 				)
-			if len(extracted_tensors.inputs) > 1 :
+			if len(extracted_tensors.inputs) > 1:
 				raise MultipleExtractedExamplesError(
 					'Multiple (%d) examples extracted from NoteSequence: %s' %
 					(len(extracted_tensors.inputs), note_sequence)
@@ -336,8 +334,8 @@ class TrainedModel(object):
 			outputs.append(
 				self._sess.run([self._z, self._mu, self._sigma], feed_dict)
 			)
-			assert outputs
-			return tuple(np.vstack(v)[:n] for v in zip(*outputs))
+		assert outputs
+		return tuple(np.vstack(v)[:n] for v in zip(*outputs))
 		
 	def decode(self, z, length=None, temperature=1.0, c_input=None):
 		"""
@@ -355,11 +353,11 @@ class TrainedModel(object):
 		"""
 		tensors = self.decode_to_tensors(z, length, temperature, c_input)
 		if self._c_input is not None:
-			return self._config.data_converter.to_items(
+			return self._config.data_converter.from_tensors(
 				tensors, np.tile(np.expand_dims(c_input, 0), [self._config.hparams.batch_size, 1, 1])
 			)
 		else:
-			return self._config.data_converter.to_items(tensors)
+			return self._config.data_converter.from_tensors(tensors)
 		
 	def decode_to_tensors(self, z, length=None, temperature=1.0, c_input=None, return_full_results=False):
 		"""
