@@ -1,0 +1,6 @@
+data/*
+jupyter/*
+tmp/*
+model/*
+test.py
+vae_model.py
