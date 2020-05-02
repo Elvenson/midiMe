@@ -17,8 +17,8 @@ bash /tmp/magenta-install.sh
 
 ### How To Use
 
-Get `cat-mel_2bar_big` pre-trained [download](https://storage.googleapis.com/magentadata/models/music_vae/checkpoints/cat-mel_2bar_big.tar)
-or `hierdec-mel_16bar` pre-trained [download](https://storage.googleapis.com/magentadata/models/music_vae/checkpoints/hierdec-mel_16bar.tar)
+Get `cat-mel_2bar_big` pre-trained model (download [here](https://storage.googleapis.com/magentadata/models/music_vae/checkpoints/cat-mel_2bar_big.tar))
+or `hierdec-mel_16bar` pre-trained model (download [here](https://storage.googleapis.com/magentadata/models/music_vae/checkpoints/hierdec-mel_16bar.tar))
 (Currently only support 2 models). There are two operations you can choose: `sample` and `interpolate`.
 
 #### Sample
