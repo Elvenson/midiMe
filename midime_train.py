@@ -356,7 +356,7 @@ def run(
 		ValueError: if required flags are missing or invalid.
 	"""
 	if not FLAGS.run_dir:
-		raise ValueError('Invalid run directory: %s' % FLAGS.run_dir)
+		raise ValueError('Require run directory.')
 	run_dir = os.path.expanduser(FLAGS.run_dir)
 	train_dir = os.path.join(run_dir, 'train')
 	
@@ -381,20 +381,20 @@ def run(
 		config_update_map['eval_examples_path'] = None
 		config_update_map['train_examples_path'] = None
 	
-	if not FLAGS.pretrained_path:
-		raise ValueError('Invalid pretrained path: %s' % FLAGS.pretrained_path)
-	config_update_map['pretrained_path'] = FLAGS.pretrained_path
-	
-	config = configs.update_config(config, config_update_map)
-	if FLAGS.num_sync_workers:
-		config.hparams.batch_size //= FLAGS.num_sync_workers
-	
 	if FLAGS.mode == 'train':
 		is_training = True
 	elif FLAGS.mode == 'eval':
 		is_training = False
 	else:
 		raise ValueError('Invalid mode: {}'.format(FLAGS.mode))
+	
+	if not FLAGS.pretrained_path and is_training:
+		raise ValueError('Require pre-trained path for training')
+	config_update_map['pretrained_path'] = FLAGS.pretrained_path
+	
+	config = configs.update_config(config, config_update_map)
+	if FLAGS.num_sync_workers:
+		config.hparams.batch_size //= FLAGS.num_sync_workers
 	
 	def dataset_fn():
 		return data.get_dataset(
