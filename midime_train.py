@@ -30,8 +30,6 @@ import tensorflow.compat.v1 as tf
 from tensorflow.contrib import training as contrib_training
 from tensorflow.contrib import framework as contrib_framework
 
-VAR_TRAIN_PATTERN = ['latent_encoder', 'decoder']
-
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 
@@ -173,12 +171,12 @@ def _get_input_tensors(dataset, config):
 
 
 # Should be called before _set_trainable_vars
-def _get_restore_vars():
+def _get_restore_vars(train_pattern):
 	"""Get list of variables we want to restored"""
 	restored_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 		flag = False
-		for pattern in VAR_TRAIN_PATTERN:
+		for pattern in train_pattern:
 			if re.search(pattern, v.name):
 				flag = True
 				break
@@ -188,11 +186,11 @@ def _get_restore_vars():
 	return restored_vars
 
 
-def _set_trainable_vars():
+def _set_trainable_vars(train_pattern):
 	"""Set list of variables we want to train"""
 	train_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-		for pattern in VAR_TRAIN_PATTERN:
+		for pattern in train_pattern:
 			if re.search(pattern, v.name):
 				train_vars.append(v)
 				
@@ -233,8 +231,8 @@ def train(
 				decoder_train=True
 			)
 			optimizer = model.train(**_get_input_tensors(dataset_fn(), config))
-			restored_vars = _get_restore_vars()
-			_set_trainable_vars()
+			restored_vars = _get_restore_vars(config.var_train_pattern)
+			_set_trainable_vars(config.var_train_pattern)
 			
 			hooks = []
 			if num_sync_workers:
