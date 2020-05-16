@@ -448,7 +448,7 @@ class LCMusicVAE(object):
 
 
 class SmallMusicVAE(object):
-	"""Small latent Music Variation Autoencoder."""
+	"""Small Latent Music Variation Autoencoder."""
 
 	def __init__(self, encoder, decoder):
 		"""
