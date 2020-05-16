@@ -120,22 +120,22 @@ flags.DEFINE_string(
 # Should not be called from within the graph to avoid redundant summaries.
 def _trial_summary(hparams, examples_path, output_dir):
 	"""Writes a tensorboard text summary of the trial."""
-
+	
 	examples_path_summary = tf.summary.text(
-			'examples_path', tf.constant(examples_path, name='examples_path'),
-			collections=[])
-
+		'examples_path', tf.constant(examples_path, name='examples_path'),
+		collections=[])
+	
 	hparams_dict = hparams.values()
-
+	
 	# Create a markdown table from hparams.
 	header = '| Key | Value |\n| :--- | :--- |\n'
 	keys = sorted(hparams_dict.keys())
 	lines = ['| %s | %s |' % (key, str(hparams_dict[key])) for key in keys]
 	hparams_table = header + '\n'.join(lines) + '\n'
-
+	
 	hparam_summary = tf.summary.text(
-			'hparams', tf.constant(hparams_table, name='hparams'), collections=[])
-
+		'hparams', tf.constant(hparams_table, name='hparams'), collections=[])
+	
 	with tf.Session() as sess:
 		writer = tf.summary.FileWriter(output_dir, graph=sess.graph)
 		writer.add_summary(examples_path_summary.eval())
@@ -182,7 +182,7 @@ def _get_restore_vars(train_pattern):
 				break
 		if not flag:  # Only load weight for layer we do not train
 			restored_vars.append(v)
-
+	
 	return restored_vars
 
 
@@ -193,12 +193,12 @@ def _set_trainable_vars(train_pattern):
 		for pattern in train_pattern:
 			if re.search(pattern, v.name):
 				train_vars.append(v)
-				
+	
 	tf.get_default_graph().clear_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 	for v in train_vars:
 		tf.add_to_collection(tf.GraphKeys.TRAINABLE_VARIABLES, v)
-	
-	
+
+
 def train(
 		train_dir,
 		config,
@@ -218,17 +218,17 @@ def train(
 		_trial_summary(
 			config.hparams, config.train_examples_path or config.tfds_name, train_dir
 		)
-		
+	
 	with tf.Graph().as_default():
 		with tf.device(tf.train.replica_device_setter(
-			num_ps_tasks, merge_devices=True
+				num_ps_tasks, merge_devices=True
 		)):
 			model = config.model
 			model.build(
 				config.hparams,
 				config.data_converter.output_depth,
-				encoder_train=False,
-				decoder_train=True
+				encoder_train=config.encoder_train,
+				decoder_train=config.decoder_train
 			)
 			optimizer = model.train(**_get_input_tensors(dataset_fn(), config))
 			restored_vars = _get_restore_vars(config.var_train_pattern)
@@ -255,7 +255,7 @@ def train(
 					lambda: tf.clip_by_global_norm(
 						grads, config.hparams.grad_clip, use_norm=global_norm)[0],
 					lambda: [tf.zeros(tf.shape(g)) for g in grads]
-					)
+				)
 			else:
 				raise ValueError(
 					'Unknown clip_mode: {}'.format(config.hparams.clip_mode)
@@ -269,7 +269,7 @@ def train(
 				'loss': model.loss
 			}
 			
-			hooks.append(tf.train.LoggingTensorHook(logging_dict, every_n_iter=100))
+			hooks.append(tf.train.LoggingTensorHook(logging_dict, every_n_iter=5))
 			if num_steps:
 				hooks.append(tf.train.StopAtStepHook(last_step=num_steps))
 			
@@ -280,13 +280,13 @@ def train(
 			
 			def InitAssignFn(scaffold, sess):
 				sess.run(init_assign_op, init_feed_dict)
-				
+			
 			scaffold = tf.train.Scaffold(
 				init_fn=InitAssignFn,
 				saver=tf.train.Saver(
 					max_to_keep=checkpoints_to_keep,
 					keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
-					
+				
 				)
 			)
 			contrib_training.train(
@@ -338,7 +338,7 @@ def evaluate(
 			eval_interval_secs=60,
 			master=master
 		)
-		
+
 
 def run(
 		config_map,
@@ -367,7 +367,7 @@ def run(
 	
 	if FLAGS.hparams:
 		config.hparams.parse(FLAGS.hparams)
-		
+	
 	config_update_map = {}
 	if FLAGS.examples_path:
 		config_update_map['%s_examples_path' % FLAGS.mode] = os.path.expanduser(FLAGS.examples_path)
@@ -442,14 +442,7 @@ def main(unsused_argv):
 def console_entry_point():
 	tf.disable_v2_behavior()
 	tf.app.run(main)
-	
+
 
 if __name__ == '__main__':
 	console_entry_point()
-
-			
-		
-			
-			
-
-

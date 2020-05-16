@@ -27,7 +27,6 @@ import six
 import tensorflow.compat.v1 as tf
 import tensorflow_probability as tfp
 from tensorflow.contrib import metrics as contrib_metrics
-from tensorflow.contrib import training as contrib_training
 
 ds = tfp.distributions
 
@@ -40,12 +39,12 @@ class BaseEncoder(six.with_metaclass(abc.ABCMeta, object)):
 		-`encode`
 	"""
 	__metaclass__ = abc.ABCMeta
-
+	
 	@abc.abstractproperty
 	def output_depth(self):
 		"""Returns the size of the output final dimension."""
 		pass
-
+	
 	@abc.abstractmethod
 	def build(self, hparams, is_training=True):
 		"""
@@ -54,7 +53,7 @@ class BaseEncoder(six.with_metaclass(abc.ABCMeta, object)):
 		:param is_training: Whether or not the model is being used for training.
 		"""
 		pass
-
+	
 	@abc.abstractmethod
 	def encode(self, sequence, sequence_length):
 		"""
@@ -75,9 +74,9 @@ class BaseDecoder(six.with_metaclass(abc.ABCMeta, object)):
 		-`reconstruction_loss`
 		-`sample`
 	"""
-
+	
 	__metaclass__ = abc.ABCMeta
-
+	
 	@abc.abstractmethod
 	def build(self, hparams, output_depth, is_training=True):
 		"""
@@ -87,7 +86,7 @@ class BaseDecoder(six.with_metaclass(abc.ABCMeta, object)):
 		:param is_training: Whether or not the model is being used for training.
 		"""
 		pass
-
+	
 	@abc.abstractmethod
 	def reconstruction_loss(self, x_input, x_target, x_length, z=None, c_input=None):
 		"""
@@ -108,7 +107,7 @@ class BaseDecoder(six.with_metaclass(abc.ABCMeta, object)):
 			metric_map: Map from metric name to tf.metrics return values for logging.
 		"""
 		pass
-
+	
 	@abc.abstractmethod
 	def sample(self, n, max_length=None, z=None, c_input=None):
 		"""
@@ -128,7 +127,7 @@ class BaseDecoder(six.with_metaclass(abc.ABCMeta, object)):
 
 class LCMusicVAE(object):
 	"""Latent Constraint Music Variational Autoencoder."""
-
+	
 	def __init__(self, encoder, decoder):
 		"""
 		Initializer for a LCMusicVAE model.
@@ -137,7 +136,7 @@ class LCMusicVAE(object):
 		"""
 		self._encoder = encoder
 		self._decoder = decoder
-
+	
 	def build(self, hparams, output_depth, encoder_train=False, decoder_train=True):
 		"""
 		Builds encoder and decoder.
@@ -157,7 +156,7 @@ class LCMusicVAE(object):
 		self._hparams = hparams
 		self._encoder.build(hparams, encoder_train)
 		self._decoder.build(hparams, output_depth, decoder_train)
-
+	
 	@property
 	def encoder(self):
 		return self._encoder
@@ -165,7 +164,7 @@ class LCMusicVAE(object):
 	@property
 	def decoder(self):
 		return self._decoder
-
+	
 	@property
 	def hparams(self):
 		return self._hparams
@@ -289,7 +288,7 @@ class LCMusicVAE(object):
 		return ds.kl_divergence(encode_latent, p_latent_z)
 	
 	def _compute_model_loss(
-		self, input_sequence, output_sequence, sequence_length, control_sequence):
+			self, input_sequence, output_sequence, sequence_length, control_sequence):
 		"""Builds a model with loss for train/eval."""
 		hparams = self.hparams
 		batch_size = hparams.batch_size
@@ -308,11 +307,11 @@ class LCMusicVAE(object):
 			# Shouldn't be necessary, but the slice loses shape information when
 			# control depth is zero.
 			control_sequence.set_shape([batch_size, None, control_depth])
-			
+		
 		# The target/expected outputs.
 		x_target = output_sequence[:, :max_seq_len]
 		# Inputs to be fed to decoder, including zero padding for the initial input.
-		x_input = tf.pad(output_sequence[:, :max_seq_len-1], [(0, 0), (1, 0), (0, 0)])
+		x_input = tf.pad(output_sequence[:, :max_seq_len - 1], [(0, 0), (1, 0), (0, 0)])
 		x_length = tf.minimum(sequence_length, max_seq_len)
 		
 		# Either encode to get `z`, to get smaller latent `z` or do unconditional, decoder-only.
@@ -320,7 +319,7 @@ class LCMusicVAE(object):
 			q_z = self.encode(input_sequence, x_length, control_sequence)
 			z = q_z.sample()
 			
-			if hparams.encoded_z_size:   # lc-vae mode
+			if hparams.encoded_z_size:  # lc-vae mode
 				# Encode `z` into smaller latent space
 				q_encode_z = self.encode_latent(z)
 				latent_z = q_encode_z.sample()
@@ -340,7 +339,7 @@ class LCMusicVAE(object):
 				kl_div = ds.kl_divergence(q_z, p_z)
 				l2 = tf.zeros([batch_size, 1], dtype=tf.float32)
 				latent_z = None
-		else:   # unconditional, decoder-only generation
+		else:  # unconditional, decoder-only generation
 			kl_div = tf.zeros([batch_size, 1], dtype=tf.float32)
 			l2 = tf.zeros([batch_size, 1], dtype=tf.float32)
 			z = None
@@ -370,7 +369,7 @@ class LCMusicVAE(object):
 			'losses/l2_loss': l2,
 		}
 		return metric_map, scalars_to_summarize
-
+	
 	def train(self, input_sequence, output_sequence, sequence_length, control_sequence=None):
 		"""
 		Train on the given sequences, returning an optimizer.
@@ -390,15 +389,15 @@ class LCMusicVAE(object):
 		
 		hparams = self.hparams
 		lr = ((hparams.learning_rate - hparams.min_learning_rate) *
-					tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
-					hparams.min_learning_rate)
+		      tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
+		      hparams.min_learning_rate)
 		
 		tf.summary.scalar('learning_rate', lr)
 		for n, t in scalars_to_summarize.items():
 			tf.summary.scalar(n, tf.reduce_mean(t))
 		
 		optimizer = tf.train.AdamOptimizer(lr)
-			
+		
 		return optimizer
 	
 	def eval(self, input_sequence, output_sequence, sequence_length, control_sequence=None):
@@ -425,34 +424,31 @@ class LCMusicVAE(object):
 		
 		for metric_name, metric_value in metrics_to_values.items():
 			tf.summary.scalar(metric_name, metric_value)
-			
+		
 		return list(metrics_to_update.values())
 	
-	def sample(self, n, max_length=None, z=None, c_input=None, **kwargs):
+	def sample(self, n, max_length=None, latent_z=None, c_input=None, **kwargs):
 		"""Sample with on optional conditional embedding `z`."""
-		if z is not None and z.shape[0].value != n:
+		if latent_z is not None and latent_z.shape[0].value != n:
 			raise ValueError(
 				'`z` must have a first dimension that equals `n` when given. '
-				'Got: %d vs %d' % (z.shape[0].value, n)
+				'Got: %d vs %d' % (latent_z.shape[0].value, n)
 			)
-		if self.hparams.z_size:
-			if z is None:
-				tf.logging.warning(
-					'Sampling from conditional model without `z`. Using random `z`.'
-				)
-				normal_shape = [n, self.hparams.z_size]
-				normal_dist = tfp.distributions.Normal(
-					loc=tf.zeros(normal_shape), scale=tf.ones(normal_shape)
-				)
-				z = normal_dist.sample()
-				
-			if self.hparams.encoded_z_size:
-				latent_z = self.encode_latent(z)
-				z = self._decode_latent(latent_z.sample()).sample()
+		if self.hparams.encoded_z_size and latent_z is None:
+			tf.logging.warning(
+				'Sampling from conditional model without `z`. Using random `z`.'
+			)
+			normal_shape = [n, self.hparams.encoded_z_size]
+			normal_dist = tfp.distributions.Normal(
+				loc=tf.zeros(normal_shape), scale=tf.ones(normal_shape)
+			)
+			latent_z = normal_dist.sample()
+		
+		z = self._decode_latent(latent_z).sample()
 		
 		return self.decoder.sample(n, max_length, z, c_input, **kwargs)
-	
-	
+
+
 class SmallMusicVAE(object):
 	"""Small latent Music Variation Autoencoder."""
 	
@@ -464,7 +460,7 @@ class SmallMusicVAE(object):
 		"""
 		self._encoder = encoder
 		self._decoder = decoder
-		
+	
 	def build(self, hparams, output_depth, encoder_train=False, decoder_train=False):
 		"""
 		Builds encoder and decoder.
@@ -555,14 +551,13 @@ class SmallMusicVAE(object):
 		# Create smaller latent z' distribution
 		mu = tf.layers.Dense(
 			encoded_z_size,
-			activation=tf.nn.softplus,
 			name='latent_encoder/mu',
 			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
 		)(x)
 		sigma = tf.layers.Dense(
 			encoded_z_size,
 			activation=tf.nn.softplus,
-			name='latent_encoder/mu',
+			name='latent_encoder/sigma',
 			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
 		)(x)
 		
@@ -586,22 +581,15 @@ class SmallMusicVAE(object):
 				name='latent_decoder/layer{}'.format(i),
 				activation='relu'
 			)(x)
-			
+		
 		# Recreate z distribution
 		mu = tf.layers.Dense(
 			z_size,
-			activation=tf.nn.softplus,
 			name='latent_decoder/mu',
 			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
 		)(x)
-		sigma = tf.layers.Dense(
-			z_size,
-			activation=tf.nn.softplus,
-			name='latent_decoder/sigma',
-			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
-		)(x)
 		
-		return ds.MultivariateNormalDiag(loc=mu, scale_diag=sigma)
+		return mu
 	
 	def _latent_reconstruction_loss(self, z, latent_z):
 		"""
@@ -614,11 +602,10 @@ class SmallMusicVAE(object):
 			Tensor represent reconstruction loss size [batch_size]
 		"""
 		g_z = self._decode_latent(latent_z)
-		construct_z = g_z.sample()
 		
 		# Loss is calculated by this formula
 		# mse(x,input_mu=0) / (2 * input_sigma=1 ^ 2)
-		se = tf.math.pow(construct_z - z, 2)
+		se = tf.math.pow(g_z - z, 2)
 		loss = tf.math.divide(se, tf.math.multiply(2.0, tf.math.pow(tf.ones([1]), 2)))
 		return tf.reduce_sum(loss, -1)
 	
@@ -638,7 +625,7 @@ class SmallMusicVAE(object):
 		return ds.kl_divergence(encode_latent, p_latent_z)
 	
 	def _compute_model_loss(
-		self, input_sequence, output_sequence, sequence_length, control_sequence):
+			self, input_sequence, output_sequence, sequence_length, control_sequence):
 		"""Builds a model with loss for train/eval."""
 		hparams = self.hparams
 		batch_size = hparams.batch_size
@@ -701,8 +688,8 @@ class SmallMusicVAE(object):
 		
 		hparams = self.hparams
 		lr = ((hparams.learning_rate - hparams.min_learning_rate) *
-					tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
-					hparams.min_learning_rate)
+		      tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
+		      hparams.min_learning_rate)
 		
 		tf.summary.scalar('learning_rate', lr)
 		for n, t in scalars_to_summarize.items():
@@ -740,27 +727,23 @@ class SmallMusicVAE(object):
 		
 		return list(metrics_to_update.values())
 	
-	def sample(self, n, max_length=None, z=None, c_input=None, **kwargs):
+	def sample(self, n, max_length=None, latent_z=None, c_input=None, **kwargs):
 		"""Sample with on optional conditional embedding `z`."""
-		if z is not None and z.shape[0].value != n:
+		if latent_z is not None and latent_z.shape[0].value != n:
 			raise ValueError(
 				'`z` must have a first dimension that equals `n` when given. '
-				'Got: %d vs %d' % (z.shape[0].value, n)
+				'Got: %d vs %d' % (latent_z.shape[0].value, n)
 			)
-		if self.hparams.z_size:
-			if z is None:
-				tf.logging.warning(
-					'Sampling from conditional model without `z`. Using random `z`.'
-				)
-				normal_shape = [n, self.hparams.z_size]
-				normal_dist = tfp.distributions.Normal(
-					loc=tf.zeros(normal_shape), scale=tf.ones(normal_shape)
-				)
-				z = normal_dist.sample()
-				
-			if self.hparams.encoded_z_size:
-				latent_z = self.encode_latent(z)
-				z = self._decode_latent(latent_z.sample()).sample()
+		if self.hparams.encoded_z_size and latent_z is None:
+			tf.logging.warning(
+				'Sampling from conditional model without `z`. Using random `z`.'
+			)
+			normal_shape = [n, self.hparams.encoded_z_size]
+			normal_dist = tfp.distributions.Normal(
+				loc=tf.zeros(normal_shape), scale=tf.ones(normal_shape)
+			)
+			latent_z = normal_dist.sample()
+		
+		z = self._decode_latent(latent_z)
 		
 		return self.decoder.sample(n, max_length, z, c_input, **kwargs)
-
