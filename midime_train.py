@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
-"""LCMusicVAE training script."""
+"""Model training script."""
 
 from __future__ import absolute_import
 from __future__ import division

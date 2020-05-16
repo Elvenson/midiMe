@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
 """Configurations for MusicVAE models."""
 
@@ -61,7 +62,7 @@ CONFIG_MAP['lc-cat-mel_2bar_big'] = Config(
 			batch_size=2,
 			max_seq_len=32,  # 2 bars w/ 16 steps per bar
 			z_size=512,
-			encoded_z_size=4,
+			encoded_z_size=8,
 			enc_rnn_size=[2048],
 			dec_rnn_size=[128, 128],
 			free_bits=0,
@@ -77,42 +78,6 @@ CONFIG_MAP['lc-cat-mel_2bar_big'] = Config(
 		max_bars=100,  # Truncate long melodies before slicing.
 		slice_bars=2,
 		steps_per_quarter=4),
-	train_examples_path=None,
-	eval_examples_path=None,
-	pretrained_path=None,
-	var_train_pattern=['latent_encoder', 'decoder'],
-	encoder_train=False,
-	decoder_train=True
-)
-
-# 16-bar Melody Models
-mel_16bar_converter = data.OneHotMelodyConverter(
-	skip_polyphony=False,
-	max_bars=100,  # Truncate long melodies before slicing.
-	slice_bars=16,
-	steps_per_quarter=4)
-
-CONFIG_MAP['lc-hierdec-mel_16bar'] = Config(
-	model=LCMusicVAE(
-		lstm_models.BidirectionalLstmEncoder(),
-		lstm_models.HierarchicalLstmDecoder(
-			lstm_models.CategoricalLstmDecoder(),
-			level_lengths=[16, 16],
-			disable_autoregression=True)),
-	hparams=merge_hparams(
-		lstm_models.get_default_hparams(),
-		HParams(
-			batch_size=32,
-			max_seq_len=256,
-			z_size=512,
-			encoded_z_size=4,
-			enc_rnn_size=[2048, 2048],
-			dec_rnn_size=[512, 512],
-			free_bits=256,
-			max_beta=0.2,
-		)),
-	note_sequence_augmenter=None,
-	data_converter=mel_16bar_converter,
 	train_examples_path=None,
 	eval_examples_path=None,
 	pretrained_path=None,
@@ -144,37 +109,6 @@ CONFIG_MAP['ae-cat-mel_2bar_big'] = Config(
 		max_bars=100,  # Truncate long melodies before slicing.
 		slice_bars=2,
 		steps_per_quarter=4),
-	train_examples_path=None,
-	eval_examples_path=None,
-	pretrained_path=None,
-	var_train_pattern=['latent'],
-	encoder_train=False,
-	decoder_train=False
-)
-
-CONFIG_MAP['ae-hierdec-mel_16bar'] = Config(
-	model=SmallMusicVAE(
-		lstm_models.BidirectionalLstmEncoder(),
-		lstm_models.HierarchicalLstmDecoder(
-			lstm_models.CategoricalLstmDecoder(),
-			level_lengths=[16, 16],
-			disable_autoregression=True)),
-	hparams=merge_hparams(
-		lstm_models.get_default_hparams(),
-		HParams(
-			batch_size=2,
-			max_seq_len=256,
-			z_size=512,
-			encoded_z_size=4,
-			latent_encoder_layers=[1024, 256, 64],
-			latent_decoder_layers=[64, 256, 1024],
-			enc_rnn_size=[2048, 2048],
-			dec_rnn_size=[512, 512],
-			free_bits=256,
-			max_beta=0.2,
-		)),
-	note_sequence_augmenter=None,
-	data_converter=mel_16bar_converter,
 	train_examples_path=None,
 	eval_examples_path=None,
 	pretrained_path=None,

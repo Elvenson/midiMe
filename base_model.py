@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
 """ Base Latent Constraint MusicVAE model"""
 
@@ -217,7 +218,6 @@ class LCMusicVAE(object):
 		
 		mu = tf.layers.Dense(
 			encoded_z_size,
-			activation=tf.nn.softplus,
 			name='latent_encoder/mu',
 			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
 		)(z)
@@ -242,7 +242,6 @@ class LCMusicVAE(object):
 		
 		mu = tf.layers.Dense(
 			z_size,
-			activation=tf.nn.softplus,
 			name='latent_decoder/mu',
 			kernel_initializer=tf.random_normal_initializer(stddev=0.001)
 		)(latent_z)
@@ -266,12 +265,11 @@ class LCMusicVAE(object):
 			A L2 loss representing the reconstruction loss size [batch_size, 1]
 		"""
 		g_z = self._decode_latent(latent_z)
-		construct_z = g_z.sample()
-		
+
 		return tf.norm(
-			construct_z - z, ord='euclidean', axis=1, keepdims=True, name=None
+			g_z.sample() - z, ord='euclidean', axis=1, keepdims=True, name=None
 		)
-	
+
 	def _kl_latent_loss(self, encode_latent):
 		"""
 		Kullback Leibler loss between latent z distribution with N(0,1)
@@ -389,8 +387,8 @@ class LCMusicVAE(object):
 		
 		hparams = self.hparams
 		lr = ((hparams.learning_rate - hparams.min_learning_rate) *
-		      tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
-		      hparams.min_learning_rate)
+					tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
+					hparams.min_learning_rate)
 		
 		tf.summary.scalar('learning_rate', lr)
 		for n, t in scalars_to_summarize.items():
@@ -688,8 +686,8 @@ class SmallMusicVAE(object):
 		
 		hparams = self.hparams
 		lr = ((hparams.learning_rate - hparams.min_learning_rate) *
-		      tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
-		      hparams.min_learning_rate)
+					tf.pow(hparams.decay_rate, tf.to_float(self.global_step)) +
+					hparams.min_learning_rate)
 		
 		tf.summary.scalar('learning_rate', lr)
 		for n, t in scalars_to_summarize.items():

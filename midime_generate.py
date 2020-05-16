@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
 """MidiMe generation script."""
 
@@ -128,8 +129,8 @@ def run(config_map, vae_config_map):
 	
 	basename = os.path.join(
 		FLAGS.output_dir,
-		'%s_%s_%s-*-of-%03d.mid' %
-		(FLAGS.config, FLAGS.mode, date_and_time, FLAGS.num_outputs))
+		'%s_%s-*-of-%03d.mid' %
+		(FLAGS.config, date_and_time, FLAGS.num_outputs))
 	logging.info('Outputting %d files as `%s`...', FLAGS.num_outputs, basename)
 	for i, ns in enumerate(results):
 		mm.sequence_proto_to_midi_file(ns, basename.replace('*', '%03d' % i))
