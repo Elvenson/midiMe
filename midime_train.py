@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
-"""LCMusicVAE training script."""
+"""Model training script."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -29,8 +30,6 @@ import configs
 import tensorflow.compat.v1 as tf
 from tensorflow.contrib import training as contrib_training
 from tensorflow.contrib import framework as contrib_framework
-
-VAR_TRAIN_PATTERN = ['latent_encoder', 'decoder']
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -124,8 +123,8 @@ def _trial_summary(hparams, examples_path, output_dir):
 	"""Writes a tensorboard text summary of the trial."""
 
 	examples_path_summary = tf.summary.text(
-			'examples_path', tf.constant(examples_path, name='examples_path'),
-			collections=[])
+		'examples_path', tf.constant(examples_path, name='examples_path'),
+		collections=[])
 
 	hparams_dict = hparams.values()
 
@@ -136,7 +135,7 @@ def _trial_summary(hparams, examples_path, output_dir):
 	hparams_table = header + '\n'.join(lines) + '\n'
 
 	hparam_summary = tf.summary.text(
-			'hparams', tf.constant(hparams_table, name='hparams'), collections=[])
+		'hparams', tf.constant(hparams_table, name='hparams'), collections=[])
 
 	with tf.Session() as sess:
 		writer = tf.summary.FileWriter(output_dir, graph=sess.graph)
@@ -163,7 +162,7 @@ def _get_input_tensors(dataset, config):
 			[batch_size, None, config.data_converter.control_depth]
 		)
 	sequence_length.set_shape([batch_size] + sequence_length.shape[1:].as_list())
-	
+
 	return {
 		'input_sequence': input_sequence,
 		'output_sequence': output_sequence,
@@ -173,12 +172,12 @@ def _get_input_tensors(dataset, config):
 
 
 # Should be called before _set_trainable_vars
-def _get_restore_vars():
+def _get_restore_vars(train_pattern):
 	"""Get list of variables we want to restored"""
 	restored_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
 		flag = False
-		for pattern in VAR_TRAIN_PATTERN:
+		for pattern in train_pattern:
 			if re.search(pattern, v.name):
 				flag = True
 				break
@@ -188,30 +187,30 @@ def _get_restore_vars():
 	return restored_vars
 
 
-def _set_trainable_vars():
+def _set_trainable_vars(train_pattern):
 	"""Set list of variables we want to train"""
 	train_vars = []
 	for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-		for pattern in VAR_TRAIN_PATTERN:
+		for pattern in train_pattern:
 			if re.search(pattern, v.name):
 				train_vars.append(v)
-				
+
 	tf.get_default_graph().clear_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 	for v in train_vars:
 		tf.add_to_collection(tf.GraphKeys.TRAINABLE_VARIABLES, v)
-	
-	
+
+
 def train(
-		train_dir,
-		config,
-		dataset_fn,
-		checkpoints_to_keep=5,
-		keep_checkpoint_every_n_hours=1,
-		num_steps=None,
-		master='',
-		num_sync_workers=0,
-		num_ps_tasks=0,
-		task=0
+	train_dir,
+	config,
+	dataset_fn,
+	checkpoints_to_keep=5,
+	keep_checkpoint_every_n_hours=1,
+	num_steps=None,
+	master='',
+	num_sync_workers=0,
+	num_ps_tasks=0,
+	task=0
 ):
 	"""Train loop."""
 	tf.gfile.MakeDirs(train_dir)
@@ -220,7 +219,7 @@ def train(
 		_trial_summary(
 			config.hparams, config.train_examples_path or config.tfds_name, train_dir
 		)
-		
+
 	with tf.Graph().as_default():
 		with tf.device(tf.train.replica_device_setter(
 			num_ps_tasks, merge_devices=True
@@ -229,13 +228,13 @@ def train(
 			model.build(
 				config.hparams,
 				config.data_converter.output_depth,
-				encoder_train=False,
-				decoder_train=True
+				encoder_train=config.encoder_train,
+				decoder_train=config.decoder_train
 			)
 			optimizer = model.train(**_get_input_tensors(dataset_fn(), config))
-			restored_vars = _get_restore_vars()
-			_set_trainable_vars()
-			
+			restored_vars = _get_restore_vars(config.var_train_pattern)
+			_set_trainable_vars(config.var_train_pattern)
+
 			hooks = []
 			if num_sync_workers:
 				optimizer = tf.train.SyncReplicasOptimizer(
@@ -243,11 +242,11 @@ def train(
 					num_sync_workers
 				)
 				hooks.append(optimizer.make_session_run_hook(is_chief))
-			
+
 			grads, var_list = zip(*optimizer.compute_gradients(model.loss))
 			global_norm = tf.global_norm(grads)
 			tf.summary.scalar('global_norm', global_norm)
-			
+
 			if config.hparams.clip_mode == 'value':
 				g = config.hparams.grad_clip
 				clipped_grads = [tf.clip_by_value(grad, -g, g) for grad in grads]
@@ -257,7 +256,7 @@ def train(
 					lambda: tf.clip_by_global_norm(
 						grads, config.hparams.grad_clip, use_norm=global_norm)[0],
 					lambda: [tf.zeros(tf.shape(g)) for g in grads]
-					)
+				)
 			else:
 				raise ValueError(
 					'Unknown clip_mode: {}'.format(config.hparams.clip_mode)
@@ -265,30 +264,30 @@ def train(
 			train_op = optimizer.apply_gradients(
 				zip(clipped_grads, var_list), global_step=model.global_step, name='train_step'
 			)
-			
+
 			logging_dict = {
 				'global_step': model.global_step,
 				'loss': model.loss
 			}
-			
-			hooks.append(tf.train.LoggingTensorHook(logging_dict, every_n_iter=100))
+
+			hooks.append(tf.train.LoggingTensorHook(logging_dict, every_n_iter=5))
 			if num_steps:
 				hooks.append(tf.train.StopAtStepHook(last_step=num_steps))
-			
+
 			variables_to_restore = contrib_framework.get_variables_to_restore(
 				include=[v.name for v in restored_vars])
 			init_assign_op, init_feed_dict = contrib_framework.assign_from_checkpoint(
 				config.pretrained_path, variables_to_restore)
-			
+
 			def InitAssignFn(scaffold, sess):
 				sess.run(init_assign_op, init_feed_dict)
-				
+
 			scaffold = tf.train.Scaffold(
 				init_fn=InitAssignFn,
 				saver=tf.train.Saver(
 					max_to_keep=checkpoints_to_keep,
 					keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
-					
+
 				)
 			)
 			contrib_training.train(
@@ -303,16 +302,16 @@ def train(
 
 
 def evaluate(
-		train_dir,
-		eval_dir,
-		config,
-		dataset_fn,
-		num_batches,
-		master=''
+	train_dir,
+	eval_dir,
+	config,
+	dataset_fn,
+	num_batches,
+	master=''
 ):
 	"""Evaluate the model repeatedly."""
 	tf.gfile.MakeDirs(eval_dir)
-	
+
 	_trial_summary(
 		config.hparams, config.eval_examples_path or config.tfds_name, eval_dir
 	)
@@ -324,11 +323,11 @@ def evaluate(
 			encoder_train=False,
 			decoder_train=False
 		)
-		
+
 		eval_op = model.eval(
 			**_get_input_tensors(dataset_fn().take(num_batches), config)
 		)
-		
+
 		hooks = [
 			contrib_training.StopAfterNEvalsHook(num_batches),
 			contrib_training.SummaryAtEndHook(eval_dir)
@@ -340,12 +339,12 @@ def evaluate(
 			eval_interval_secs=60,
 			master=master
 		)
-		
+
 
 def run(
-		config_map,
-		tf_file_reader=tf.data.TFRecordDataset,
-		file_reader=tf.python_io.tf_record_iterator
+	config_map,
+	tf_file_reader=tf.data.TFRecordDataset,
+	file_reader=tf.python_io.tf_record_iterator
 ):
 	"""
 	Load model params, save config file and start trainer.
@@ -359,43 +358,43 @@ def run(
 		raise ValueError('Require run directory.')
 	run_dir = os.path.expanduser(FLAGS.run_dir)
 	train_dir = os.path.join(run_dir, 'train')
-	
+
 	if FLAGS.mode not in ['train', 'eval']:
 		raise ValueError('Invalid mode: %s' % FLAGS.mode)
-	
+
 	if FLAGS.config not in config_map:
 		raise ValueError('Invalid config: %s' % FLAGS.config)
 	config = config_map[FLAGS.config]
-	
+
 	if FLAGS.hparams:
 		config.hparams.parse(FLAGS.hparams)
-		
+
 	config_update_map = {}
 	if FLAGS.examples_path:
 		config_update_map['%s_examples_path' % FLAGS.mode] = os.path.expanduser(FLAGS.examples_path)
-	
+
 	if FLAGS.tfds_name:
 		if FLAGS.examples_path:
 			raise ValueError('At most one of --examples_path and --tfds_name can be set.')
 		config_update_map['tfds_name'] = FLAGS.tfds_name
 		config_update_map['eval_examples_path'] = None
 		config_update_map['train_examples_path'] = None
-	
+
 	if FLAGS.mode == 'train':
 		is_training = True
 	elif FLAGS.mode == 'eval':
 		is_training = False
 	else:
 		raise ValueError('Invalid mode: {}'.format(FLAGS.mode))
-	
+
 	if not FLAGS.pretrained_path and is_training:
 		raise ValueError('Require pre-trained path for training')
 	config_update_map['pretrained_path'] = FLAGS.pretrained_path
-	
+
 	config = configs.update_config(config, config_update_map)
 	if FLAGS.num_sync_workers:
 		config.hparams.batch_size //= FLAGS.num_sync_workers
-	
+
 	def dataset_fn():
 		return data.get_dataset(
 			config,
@@ -404,7 +403,7 @@ def run(
 			is_training=is_training,
 			cache_dataset=FLAGS.cache_dataset
 		)
-	
+
 	if is_training:
 		train(
 			train_dir,
@@ -444,14 +443,7 @@ def main(unsused_argv):
 def console_entry_point():
 	tf.disable_v2_behavior()
 	tf.app.run(main)
-	
+
 
 if __name__ == '__main__':
 	console_entry_point()
-
-			
-		
-			
-			
-
-

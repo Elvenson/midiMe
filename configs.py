@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Modification copyright 2020 Bui Quoc Bao
-# Change Variational Auto Encoder (VAE) model to Latent Constraint VAE model
+# Modification copyright 2020 Bui Quoc Bao.
+# Add Latent Constraint VAE model.
+# Add Small VAE model.
 
 """Configurations for MusicVAE models."""
 
@@ -26,16 +27,17 @@ import collections
 from magenta.common import merge_hparams
 from magenta.models.music_vae import data
 from magenta.models.music_vae import lstm_models
-from base_model import LCMusicVAE
+from base_model import LCMusicVAE, SmallMusicVAE
 from tensorflow.contrib.training import HParams
 
 
 class Config(collections.namedtuple(
-		'Config',
-		[
-			'model', 'hparams', 'note_sequence_augmenter', 'data_converter',
-			'train_examples_path', 'eval_examples_path', 'tfds_name', 'pretrained_path'
-		])):
+	'Config',
+	[
+		'model', 'hparams', 'note_sequence_augmenter', 'data_converter',
+		'train_examples_path', 'eval_examples_path', 'tfds_name', 'pretrained_path',
+		'var_train_pattern', 'encoder_train', 'decoder_train'
+	])):
 
 	def values(self):
 		return self._asdict()
@@ -52,94 +54,65 @@ def update_config(config, update_dict):
 
 CONFIG_MAP = dict()
 
-
-# Melody
-CONFIG_MAP['lc-cat-mel_2bar_small'] = Config(
-		model=LCMusicVAE(lstm_models.BidirectionalLstmEncoder(), lstm_models.CategoricalLstmDecoder()),
-		hparams=merge_hparams(
-				lstm_models.get_default_hparams(),
-				HParams(
-						batch_size=512,
-						max_seq_len=32,  # 2 bars w/ 16 steps per bar
-						z_size=256,
-						enc_rnn_size=[512],
-						dec_rnn_size=[256, 256],
-						free_bits=0,
-						max_beta=0.2,
-						beta_rate=0.99999,
-						sampling_schedule='inverse_sigmoid',
-						sampling_rate=1000,
-				)),
-		note_sequence_augmenter=data.NoteSequenceAugmenter(transpose_range=(-5, 5)),
-		data_converter=data.OneHotMelodyConverter(
-				valid_programs=data.MEL_PROGRAMS,
-				skip_polyphony=False,
-				max_bars=100,  # Truncate long melodies before slicing.
-				slice_bars=2,
-				steps_per_quarter=4),
-		train_examples_path=None,
-		eval_examples_path=None,
-		pretrained_path=None,
-)
-
 CONFIG_MAP['lc-cat-mel_2bar_big'] = Config(
-		model=LCMusicVAE(lstm_models.BidirectionalLstmEncoder(), lstm_models.CategoricalLstmDecoder()),
-		hparams=merge_hparams(
-				lstm_models.get_default_hparams(),
-				HParams(
-						batch_size=512,
-						max_seq_len=32,  # 2 bars w/ 16 steps per bar
-						z_size=512,
-						encoded_z_size=128,
-						enc_rnn_size=[2048],
-						dec_rnn_size=[128, 128],
-						free_bits=0,
-						max_beta=0.5,
-						beta_rate=0.99999,
-						sampling_schedule='inverse_sigmoid',
-						sampling_rate=1000,
-				)),
-		note_sequence_augmenter=data.NoteSequenceAugmenter(transpose_range=(-5, 5)),
-		data_converter=data.OneHotMelodyConverter(
-				valid_programs=data.MEL_PROGRAMS,
-				skip_polyphony=False,
-				max_bars=100,  # Truncate long melodies before slicing.
-				slice_bars=2,
-				steps_per_quarter=4),
-		train_examples_path=None,
-		eval_examples_path=None,
-		pretrained_path=None,
-)
-
-# 16-bar Melody Models
-mel_16bar_converter = data.OneHotMelodyConverter(
+	model=LCMusicVAE(lstm_models.BidirectionalLstmEncoder(), lstm_models.CategoricalLstmDecoder()),
+	hparams=merge_hparams(
+		lstm_models.get_default_hparams(),
+		HParams(
+			batch_size=2,
+			max_seq_len=32,  # 2 bars w/ 16 steps per bar
+			z_size=512,
+			encoded_z_size=8,
+			enc_rnn_size=[2048],
+			dec_rnn_size=[128, 128],
+			free_bits=0,
+			max_beta=0.5,
+			beta_rate=0.99999,
+			sampling_schedule='inverse_sigmoid',
+			sampling_rate=1000,
+		)),
+	note_sequence_augmenter=data.NoteSequenceAugmenter(transpose_range=(-5, 5)),
+	data_converter=data.OneHotMelodyConverter(
+		valid_programs=data.MEL_PROGRAMS,
 		skip_polyphony=False,
 		max_bars=100,  # Truncate long melodies before slicing.
-		slice_bars=16,
-		steps_per_quarter=4)
+		slice_bars=2,
+		steps_per_quarter=4),
+	train_examples_path=None,
+	eval_examples_path=None,
+	pretrained_path=None,
+	var_train_pattern=['latent_encoder', 'decoder'],
+	encoder_train=False,
+	decoder_train=True
+)
 
-CONFIG_MAP['lc-hierdec-mel_16bar'] = Config(
-		model=LCMusicVAE(
-				lstm_models.BidirectionalLstmEncoder(),
-				lstm_models.HierarchicalLstmDecoder(
-						lstm_models.CategoricalLstmDecoder(),
-						level_lengths=[16, 16],
-						disable_autoregression=True)),
-		hparams=merge_hparams(
-				lstm_models.get_default_hparams(),
-				HParams(
-						batch_size=512,
-						max_seq_len=256,
-						z_size=512,
-						encoded_z_size=128,
-						enc_rnn_size=[2048, 2048],
-						dec_rnn_size=[512, 512],
-						free_bits=256,
-						max_beta=0.2,
-				)),
-		note_sequence_augmenter=None,
-		data_converter=mel_16bar_converter,
-		train_examples_path=None,
-		eval_examples_path=None,
-		pretrained_path=None,
+CONFIG_MAP['ae-cat-mel_2bar_big'] = Config(
+	model=SmallMusicVAE(lstm_models.BidirectionalLstmEncoder(), lstm_models.CategoricalLstmDecoder()),
+	hparams=merge_hparams(
+		lstm_models.get_default_hparams(),
+		HParams(
+			batch_size=2,
+			max_seq_len=32,  # 2 bars w/ 16 steps per bar
+			z_size=512,
+			encoded_z_size=4,
+			latent_encoder_layers=[1024, 256, 64],
+			latent_decoder_layers=[64, 256, 1024],
+			enc_rnn_size=[2048],
+			dec_rnn_size=[2048, 2048, 2048],
+			max_beta=0.5,
+			beta_rate=0.99999,
+		)),
+	note_sequence_augmenter=data.NoteSequenceAugmenter(transpose_range=(-5, 5)),
+	data_converter=data.OneHotMelodyConverter(
+		valid_programs=data.MEL_PROGRAMS,
+		skip_polyphony=False,
+		max_bars=100,  # Truncate long melodies before slicing.
+		slice_bars=2,
+		steps_per_quarter=4),
+	train_examples_path=None,
+	eval_examples_path=None,
+	pretrained_path=None,
+	var_train_pattern=['latent'],
+	encoder_train=False,
+	decoder_train=False
 )
