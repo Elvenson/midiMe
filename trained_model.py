@@ -72,15 +72,15 @@ class TrainedModel(object):
 		sample_kwargs: Additional, non-tensor keyword arguments to pass to sample
 			call.
 	"""
-	
+
 	def __init__(
-			self, vae_config, model_config, batch_size, vae_checkpoint_dir_or_path=None, model_checkpoint_dir_or_path=None,
-			model_var_pattern=None, session_target='', **sample_kwargs):
+		self, vae_config, model_config, batch_size, vae_checkpoint_dir_or_path=None, model_checkpoint_dir_or_path=None,
+		model_var_pattern=None, session_target='', **sample_kwargs):
 		if tf.gfile.IsDirectory(vae_checkpoint_dir_or_path):
 			vae_checkpoint_path = tf.train.latest_checkpoint(vae_checkpoint_dir_or_path)
 		else:
 			vae_checkpoint_path = vae_checkpoint_dir_or_path
-		
+
 		if tf.gfile.IsDirectory(model_checkpoint_dir_or_path):
 			model_checkpoint_path = tf.train.latest_checkpoint(model_checkpoint_dir_or_path)
 		else:
@@ -96,22 +96,22 @@ class TrainedModel(object):
 				encoder_train=False,
 				decoder_train=False,
 			)
-			
+
 			# Input placeholders
 			self._temperature = tf.placeholder(tf.float32, shape=())
-			
+
 			if self._config.hparams.z_size:
 				self._latent_z_input = tf.placeholder(
 					tf.float32, shape=[batch_size, self._config.hparams.encoded_z_size])
 			else:
 				self._latent_z_input = None
-			
+
 			if self._config.data_converter.control_depth > 0:
 				self._c_input = tf.placeholder(
 					tf.float32, shape=[None, self._config.data_converter.control_depth])
 			else:
 				self._c_input = None
-			
+
 			self._inputs = tf.placeholder(
 				tf.float32,
 				shape=[batch_size, None, self._config.data_converter.input_depth])
@@ -122,7 +122,7 @@ class TrainedModel(object):
 				tf.int32,
 				shape=[batch_size] + list(self._config.data_converter.length_shape))
 			self._max_length = tf.placeholder(tf.int32, shape=())
-			
+
 			# Outputs
 			self._outputs, self._decoder_results = model.sample(
 				batch_size,
@@ -131,7 +131,7 @@ class TrainedModel(object):
 				c_input=self._c_input,
 				temperature=self._temperature,
 				**sample_kwargs)
-			
+
 			vae_var_list = []
 			model_var_list = []
 			for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
@@ -142,7 +142,7 @@ class TrainedModel(object):
 						model_var_list.append(v)
 				if not flag:
 					vae_var_list.append(v)
-			
+
 			# Restore vae graph part
 			self._sess = tf.Session(target=session_target)
 			vae_saver = tf.train.Saver(vae_var_list)
@@ -159,7 +159,7 @@ class TrainedModel(object):
 					vae_saver.restore(self._sess, vae_checkpoint_path)
 			else:
 				vae_saver.restore(self._sess, vae_checkpoint_path)
-			
+
 			# Restore model graph part
 			model_saver = tf.train.Saver(model_var_list)
 			if os.path.exists(vae_checkpoint_path) and tarfile.is_tarfile(model_checkpoint_path):
@@ -175,7 +175,7 @@ class TrainedModel(object):
 					model_saver.restore(self._sess, model_checkpoint_path)
 			else:
 				model_saver.restore(self._sess, model_checkpoint_path)
-	
+
 	def sample(self, n=None, length=None, temperature=1.0, same_latent_z=False, c_input=None):
 		"""
 		Generates random samples from the model.
@@ -193,26 +193,26 @@ class TrainedModel(object):
 		batch_size = self._config.hparams.batch_size
 		n = n or batch_size
 		latent_z_size = self._config.hparams.encoded_z_size
-		
+
 		if not length and self._config.data_converter.end_token is None:
 			raise ValueError(
 				'A length must be specified when the end token is not used.'
 			)
 		length = length or tf.int32.max
-		
+
 		feed_dict = {
 			self._temperature: temperature,
 			self._max_length: length
 		}
-		
+
 		if self._latent_z_input is not None and same_latent_z:
 			latent_z = np.random.randn(latent_z_size).astype(np.float32)
 			latent_z = np.tile(latent_z, (batch_size, 1))
 			feed_dict[self._latent_z_input] = latent_z
-		
+
 		if self._c_input is not None:
 			feed_dict[self._c_input] = c_input
-		
+
 		outputs = []
 		for _ in range(int(np.ceil(n / batch_size))):
 			if self._latent_z_input is not None and not same_latent_z:

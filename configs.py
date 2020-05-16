@@ -38,7 +38,7 @@ class Config(collections.namedtuple(
 		'train_examples_path', 'eval_examples_path', 'tfds_name', 'pretrained_path',
 		'var_train_pattern', 'encoder_train', 'decoder_train'
 	])):
-	
+
 	def values(self):
 		return self._asdict()
 

@@ -88,7 +88,7 @@ def run(config_map, vae_config_map):
 		ValueError: if required flags are missing or invalid.
 	"""
 	date_and_time = time.strftime('%Y-%m-%d_%H%M%S')
-	
+
 	if FLAGS.run_dir is None == FLAGS.checkpoint_file is None:
 		raise ValueError(
 			'Exactly one of `--run_dir` or `--checkpoint_file` must be specified.'
@@ -100,7 +100,7 @@ def run(config_map, vae_config_map):
 	if FLAGS.output_dir is None:
 		raise ValueError('`--output_dir` is required.')
 	tf.gfile.MakeDirs(FLAGS.output_dir)
-	
+
 	if FLAGS.config not in config_map:
 		raise ValueError('Invalid MidiMe config name: %s' % FLAGS.config)
 	config = config_map[FLAGS.config]
@@ -108,7 +108,7 @@ def run(config_map, vae_config_map):
 		raise ValueError('Invalid MusicVAE config name: %s' % FLAGS.vae_config)
 	vae_config = vae_config_map[FLAGS.vae_config]
 	config.data_converter.max_tensors_per_item = None
-	
+
 	logging.info('Loading model...')
 	if FLAGS.run_dir:
 		checkpoint_dir_or_path = os.path.expanduser(
@@ -120,13 +120,13 @@ def run(config_map, vae_config_map):
 		vae_config=vae_config, model_config=config, batch_size=min(FLAGS.max_batch_size, FLAGS.num_outputs),
 		vae_checkpoint_dir_or_path=vae_checkpoint_dir_or_path, model_checkpoint_dir_or_path=checkpoint_dir_or_path,
 		model_var_pattern=['latent'], session_target='')
-	
+
 	logging.info('Sampling...')
 	results = model.sample(
 		n=FLAGS.num_outputs,
 		length=config.hparams.max_seq_len,
 		temperature=FLAGS.temperature)
-	
+
 	basename = os.path.join(
 		FLAGS.output_dir,
 		'%s_%s-*-of-%03d.mid' %
@@ -134,7 +134,7 @@ def run(config_map, vae_config_map):
 	logging.info('Outputting %d files as `%s`...', FLAGS.num_outputs, basename)
 	for i, ns in enumerate(results):
 		mm.sequence_proto_to_midi_file(ns, basename.replace('*', '%03d' % i))
-	
+
 	logging.info('Done.')
 
 
