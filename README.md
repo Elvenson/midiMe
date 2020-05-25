@@ -10,7 +10,7 @@ each pre-trained model can be viewed as a module, making it easier to achieve la
 This implementation is based from this [paper](https://arxiv.org/pdf/1902.08261.pdf) but only on one domain music (For experimentation purpose).
 
 Here is my [medium post](https://medium.com/@bobi_29852/smallmusicvae-an-encoded-latent-space-model-for-music-variational-autoencoder-e087c7fd2536)
-to briefly explain the architecture of both models as well as some melody samples generated from this model you can listen to.
+to briefly explain the architecture of both models as well as some melody samples generated from `SmallMusicVAE` model you can listen to.
 
 ## Installation:
 
