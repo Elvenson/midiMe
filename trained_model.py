@@ -32,14 +32,6 @@ from magenta.common import merge_hparams
 from configs import Config
 
 
-class NoExtractedExamplesError(Exception):
-	pass
-
-
-class MultipleExtractedExamplesError(Exception):
-	pass
-
-
 def _update_config(config1, config2):
 	"""Update config1 hparams with hparams from config2"""
 	h = merge_hparams(config1.hparams, config2.hparams)
