@@ -14,7 +14,7 @@ to briefly explain the architecture of both models as well as some melody sample
 
 ## Installation:
 
-Just like official [Magenta](https://github.com/tensorflow/magenta) repo, you can `pip install magenta` package (support only Python >= 3.5) 
+Just like official [Magenta](https://github.com/tensorflow/magenta) repo, you can `pip install magenta==1.3.1` package (support only Python >= 3.5) 
 or if you want to install with anaconda, just simply type:
 
 ```bash
