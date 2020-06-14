@@ -33,7 +33,7 @@ from configs import Config
 
 
 def _update_config(config1, config2):
-    """Update config1 hparams with hparams from config2"""
+    """Update config1 hparams with hparams from config2."""
     h = merge_hparams(config1.hparams, config2.hparams)
     return Config(
         model=config1.model,
