@@ -147,7 +147,7 @@ def _trial_summary(hparams, examples_path, output_dir):
 
 
 def _get_input_tensors(dataset, config):
-    """Get input tensors from dataset"""
+    """Get input tensors from dataset."""
     batch_size = config.hparams.batch_size
     iterator = tf.data.make_one_shot_iterator(dataset)
     (input_sequence, output_sequence, control_sequence, sequence_length) = iterator.get_next()
@@ -175,7 +175,7 @@ def _get_input_tensors(dataset, config):
 
 # Should be called before _set_trainable_vars
 def _get_restore_vars(train_pattern):
-    """Get list of variables we want to restored"""
+    """Get list of variables we want to restored."""
     restored_vars = []
     for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
         flag = False
@@ -190,7 +190,7 @@ def _get_restore_vars(train_pattern):
 
 
 def _set_trainable_vars(train_pattern):
-    """Set list of variables we want to train"""
+    """Set list of variables we want to train."""
     train_vars = []
     for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
         for pattern in train_pattern:
