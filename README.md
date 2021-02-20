@@ -22,6 +22,13 @@ curl https://raw.githubusercontent.com/tensorflow/magenta/master/magenta/tools/m
 bash /tmp/magenta-install.sh
 ```
 
+Or you can simply create new python3 environment, change directory to this repo and type the following line:
+```bash
+pip install -r requirement.txt
+```
+Do note that it's my working environment so there might be some unused packages.
+
+
 ## How To Use
 
 Get `cat-mel_2bar_big` pre-trained musicVAE model (download [here](https://storage.googleapis.com/magentadata/models/music_vae/checkpoints/cat-mel_2bar_big.tar))
