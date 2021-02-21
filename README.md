@@ -14,15 +14,15 @@ to briefly explain the architecture of both models as well as some melody sample
 
 ## Installation:
 
-Just like official [Magenta](https://github.com/tensorflow/magenta) repo, you can `pip install magenta==1.3.1` package (support only Python >= 3.5) 
-or if you want to install with anaconda, just simply type:
+Just like official [Magenta](https://github.com/tensorflow/magenta) repo, you can `pip install magenta==1.3.1` package 
+(tested only on Python == 3.7) or if you want to install with anaconda, just simply type:
 
 ```bash
 curl https://raw.githubusercontent.com/tensorflow/magenta/master/magenta/tools/magenta-install.sh > /tmp/magenta-install.sh
 bash /tmp/magenta-install.sh
 ```
 
-Or you can simply create new python3 environment, change directory to this repo and type the following line:
+Or you can simply create new python3.7 environment, change directory to this repo and type the following line:
 ```bash
 pip install -r requirement.txt
 ```
