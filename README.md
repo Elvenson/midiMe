@@ -92,7 +92,7 @@ python midime_generate.py \
 --output_dir=<generated melody output path>
 ```
 
-#### Example
+### Example
 For ease of testing, I have put some generated sample data in `data` folder. 
 To test the training phase, you can try this command:
 ```shell script
