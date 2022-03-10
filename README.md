@@ -44,10 +44,10 @@ Assuming your generated examples are `data/notesequences.tfrecord`, training `ae
 ```sh
 python midime_train.py \
 --config=ae-cat-mel_2bar_big \
---run_dir=tmp/ \
+--run_dir=<model output directory> \
 --mode=train \
---examples_path=data/notesequences.tfrecord \
---pretrained_path=model/cat-mel_2bar_big.ckpt \
+--examples_path=<path to sample tfrecord> \
+--pretrained_path=<path to cat-mel_2bar_big.ckpt> \
 --num_steps=100
 ```
 
@@ -59,10 +59,10 @@ but we also need to load MusicVAE model instead of only loading SmallMusicVAE mo
 python midime_generate.py \
 --vae_config=cat-mel_2bar_big \
 --config=ae-cat-mel_2bar_big \
---checkpoint_file=/path/to/lc_music_vae/checkpoints/ae-cat-mel_2bar_big.tar \
---vae_checkpoint_file=/path/to/music_vae/checkpoints/cat-mel_2bar_big.tar \
+--checkpoint_file=<path to your train model ckpt file> \
+--vae_checkpoint_file=<path to cat-mel_2bar_big.ckpt> \
 --num_outputs=5 \
---output_dir=/tmp/ae_music_vae/generated
+--output_dir=<generated melody output path>
 ```
 
 ### Latent Constraint MusicVAE (LCMusicVAE):
@@ -72,10 +72,10 @@ Similar to `SmallMusicVAE`, we just need to change the `config` value to `lc-cat
 ```sh
 python midime_train.py \
 --config=lc-cat-mel_2bar_big \
---run_dir=tmp/ \
+--run_dir=<model output directory> \
 --mode=train \
---examples_path=data/notesequences.tfrecord \
---pretrained_path=model/cat-mel_2bar_big.ckpt \
+--examples_path=<sample tfrecord file> \
+--pretrained_path=<path to cat-mel_2bar_big.ckpt> \
 --num_steps=100
 ```
 
@@ -86,10 +86,34 @@ Same thing applies here, we just need to change `config` parameter to `lc-cat-me
 python midime_generate.py \
 --vae_config=cat-mel_2bar_big \
 --config=lc-cat-mel_2bar_big \
---checkpoint_file=/path/to/lc_music_vae/checkpoints/lc-cat-mel_2bar_big.tar \
---vae_checkpoint_file=/path/to/music_vae/checkpoints/cat-mel_2bar_big.tar \
+--checkpoint_file=<path to your model ckpt file> \
+--vae_checkpoint_file=<path to cat-mel_2bar_big.ckpt> \
 --num_outputs=5 \
---output_dir=/tmp/lc_music_vae/generated
+--output_dir=<generated melody output path>
 ```
 
- 
+#### Example
+For ease of testing, I have put some generated sample data in `data` folder. 
+To test the training phase, you can try this command:
+```shell script
+python midime_train.py \
+--config=ae-cat-mel_2bar_big \
+--run_dir=tmp/ \
+--mode=train \
+--examples_path=data/fur_elise.tfrecord \
+--pretrained_path=<path to cat-mel_2bar_big.ckpt> \
+--num_steps=200
+```
+Your model will be in `tmp/train` folder. 
+
+For generating melody, you can try:
+```shell script
+python midime_generate.py \
+--vae_config=cat-mel_2bar_big \
+--config=ae-cat-mel_2bar_big \
+--checkpoint_file=tmp/train/model.ckpt-200 \
+--vae_checkpoint_file=<path to cat-mel_2bar_big.ckpt> \
+--num_outputs=15 \
+--output_dir=tmp/generated
+```
+Your generated melodies will be in `tmp/generated` folder.

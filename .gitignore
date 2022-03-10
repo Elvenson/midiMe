@@ -1,7 +1,9 @@
-data/*
+data/*.mid
+data/chopin_impromptu.tfrecord
+data/test.tfrecord
 jupyter/*
 tmp/*
-model/*
+model/
 test.py
 vae_model.py
 jupyters/*
